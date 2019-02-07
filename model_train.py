@@ -48,7 +48,71 @@ def main():
 	correct_pred = tf.equal(tf.argmax(logits, 1), tf.argmax(labels, 1))
 	accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
+	###################Import Data###############################33
+
+	from tensorflow.examples.tutorials.mnist import input_data
+	mnist = input_data.read_data_sets("MNIST_data/", one_hot = True)
+
 	#####training#########
+	sess = tf.Session()
+	sess.run(tf.initialize_all_variables())
+
+	itr = []
+	itr_acc = []
+
+	for i in range(600):
+
+		batch_x, batch_y = mnist.train.next_batch(50)
+		batch_x = np.reshape(batch_x,(-1, 28, 28, 1))
+
+		feed_dict = {x_placeholder: batch_x, labels: batch_y}
+
+
+		if i < 200:
+			sess.run(train_step, feed_dict=feed_dict)
+
+		elif i>=200 and i < 400:
+
+			if i%500 = 0:
+				print(i, 'pruning')
+				for l in Layers:
+					l.pruning(sess, 0.1) # thresold
+
+			g_data = sess.run(grads, feed_dict={x_placeholder:batch_x, labels:batch_y})
+			feed_dict = {}
+			for l , g, gs in zip(Layers, grads, g_data):
+				pruned_grad = l.prune_weights_grad(gs)
+				feed_dict[g] = pruned_grad
+
+			sess.run(train_step, feed_dict=feed_dict)
+
+			for l in Layers:
+				l.weight_update(sess)
+
+	#################quantize##############################
+
+		else:
+
+			if i ==1000:
+				print(i, "quantize w")
+				for l in Layers:
+					l.quantize(sess)
+
+			g_data = sess.run(grads, feed_dict={x_placeholder:batch_x, labels:batch_y})
+			feed_dict = {}
+			for l , g, gs in zip(Layers, grads, g_data):
+				quantized_grad = l.quantized_grad(gs)
+				feed_dict[g] = quantized_grad
+
+
+			sess.run(train_step, feed_dict=feed_dict)
+
+			for l in Layers:
+				l.quantize_cen_update(sess)
+				l.quantize_w_update(sess)
+
+
+	
 
 
 if __name__ == "__main__":

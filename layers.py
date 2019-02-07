@@ -59,7 +59,7 @@ class TrainLayer(object):
 
 		sess.run(self.assign, feed_dict=[self.place: self.mask*w_data])
 
-	def prune_weights(self, grad):
+	def prune_weights_grad(self, grad):
 		return grad * self.mask
 
 	def weight_update(self, sess):
@@ -89,4 +89,55 @@ class TrainLayer(object):
 
 			self.cluster_mask = []
 			for i in range(self.N_clusters):
-				cluster_mask 
+				cluster_mask = (classes==i).astype(np.float32) * self.mask
+				self.cluster_mask.append(cluster_mask)
+
+				num_w = np.sum(cluster_mask)
+
+				if num_w !=0:
+					self.centroids[i] = np.sum(cluster_mask * w_data)/num_w
+				else:
+					pass
+
+			if np.array_equal(centroids_old, centroids):
+				break
+			centroids_old = np.copy(self.centroids)
+
+		self.quantize_w_update(sess)
+
+		print(self.name, "----", centroids)
+
+	def quantized_grads(self, grad):
+		gradient = np.zeros(self.w.shape, dtype=np.float32)
+
+		for g in range:
+			cluster_mask = self.cluster_mask[g]
+			centroid_g = np.sum(grad * cluster_mask)
+
+			gradient = gradient + cluster_mask * centroid_g
+		return gradient
+
+	def quantize_cen_update(self, sess):
+		w_data = sess.run(self.w)
+
+		for i in range(self.N_clusters):
+			cluster_mask = self.cluster_mask[i]
+			count = np.sum(cluster_mask)
+
+			if count!=0:
+				self.centroids[i] = np.sum(cluster_mask * w_data)/count
+			else:
+				pass
+
+	def quantize_w_update(self, sess):
+
+		w_data_update = np.zeros(self.w.shape, dtype=np.float32)
+
+		for c in range(self.N_clusters):
+
+			cluster_mask = self.cluster_mask[c]
+			centroid = self.centroids[c]
+
+			w_data_update = w_data_update + cluster_mask * centroid
+
+		sess.run(self.assign_w, feed_dict={self.w.placeholder:self.mask * w_data_update})
